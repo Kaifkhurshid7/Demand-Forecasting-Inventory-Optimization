@@ -1,5 +1,6 @@
 """
-Pydantic schemas for FastAPI request/response validation.
+Pydantic models for the FastAPI endpoints.
+These define what data the API expects and returns.
 """
 
 from pydantic import BaseModel, Field, validator
@@ -7,18 +8,16 @@ from typing import List, Optional
 from datetime import date
 
 
-# ──────────────────────────────────────────────
-# Prediction Schemas
-# ──────────────────────────────────────────────
+# Prediction Endpoint Models
 
 class PredictRequest(BaseModel):
-    """Request schema for GET /predict."""
-    category: str = Field(..., description="Product category name (English)")
-    days: int = Field(default=30, ge=1, le=365, description="Forecast horizon in days")
+    """What the user sends when asking for a forecast."""
+    category: str = Field(..., description="Product category name in English")
+    days: int = Field(default=30, ge=1, le=365, description="How many days to forecast")
 
 
 class DailyForecast(BaseModel):
-    """A single day's forecast."""
+    """Forecast for a single day."""
     date: str
     predicted_orders: int
     predicted_lower: int
@@ -26,7 +25,7 @@ class DailyForecast(BaseModel):
 
 
 class PredictResponse(BaseModel):
-    """Response schema for GET /predict."""
+    """The forecast response sent back to the user."""
     status: str = "success"
     category: str
     forecast_days: int
@@ -38,36 +37,34 @@ class PredictResponse(BaseModel):
 
 
 class PredictError(BaseModel):
-    """Error response for prediction failures."""
+    """Error message if prediction fails."""
     status: str = "error"
     detail: str
 
 
-# ──────────────────────────────────────────────
-# Optimization Schemas
-# ──────────────────────────────────────────────
+# Optimization Endpoint Models
 
 class CategoryCostInput(BaseModel):
-    """Cost and stock data for a single category."""
+    """Cost and stock info for one category."""
     category: str
     current_stock: float = Field(default=100, ge=0)
     unit_cost: float = Field(default=50.0, ge=0)
     selling_price: float = Field(default=80.0, ge=0)
     storage_per_unit: float = Field(default=1.0, ge=0)
-    forecast_demand: Optional[float] = None  # Use predicted if not provided
+    forecast_demand: Optional[float] = None
     forecast_std: Optional[float] = None
 
 
 class OptimizeRequest(BaseModel):
-    """Request schema for POST /optimize."""
-    categories: Optional[List[CategoryCostInput]] = Field(default=None, description="Custom cost data per category")
+    """Request to run inventory optimization."""
+    categories: Optional[List[CategoryCostInput]] = Field(default=None)
     storage_capacity: Optional[float] = Field(default=None, ge=0)
     budget: Optional[float] = Field(default=None, ge=0)
     service_level: Optional[float] = Field(default=0.95, ge=0, le=1)
 
 
 class InventoryRecommendation(BaseModel):
-    """Single category recommendation."""
+    """Optimization result for one category."""
     category: str
     current_stock: float
     forecast_demand: float
@@ -80,24 +77,22 @@ class InventoryRecommendation(BaseModel):
 
 
 class OptimizeResponse(BaseModel):
-    """Response schema for POST /optimize."""
+    """Optimization results sent back to the user."""
     status: str = "success"
     total_cost: float
     recommendations: List[InventoryRecommendation]
 
 
 class OptimizeError(BaseModel):
-    """Error response for optimization failures."""
+    """Error message if optimization fails."""
     status: str = "error"
     detail: str
 
 
-# ──────────────────────────────────────────────
-# Health / Info
-# ──────────────────────────────────────────────
+# Health Check Model
 
 class HealthResponse(BaseModel):
-    """Health check response."""
+    """Shows API health and available models."""
     status: str = "healthy"
     models_loaded: int
     categories_available: List[str]
