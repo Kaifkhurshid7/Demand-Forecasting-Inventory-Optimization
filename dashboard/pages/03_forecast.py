@@ -1,5 +1,5 @@
 """
-Forecast Viewer Page — Professional SaaS-style demand forecast visualization.
+Forecast Viewer Page — Dark theme demand forecast visualization.
 """
 
 import streamlit as st
@@ -17,27 +17,23 @@ daily = st.session_state.get("daily_data", pd.DataFrame())
 featured = st.session_state.get("featured_data", pd.DataFrame())
 
 st.title("Forecast Viewer")
-st.markdown("<p style='color:#64748B; font-size:0.9rem; margin-top:-0.25rem;'>Select a category and generate demand forecasts</p>", unsafe_allow_html=True)
+st.markdown("<p style='color:#8B949E; font-size:0.85rem; margin-top:-0.25rem;'>Select a category and generate demand forecasts</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# ── Discover available categories ──
 model_files = list(MODELS_DIR.glob("ensemble_*.pkl"))
-categories_available = sorted(set(
-    f.stem.replace("ensemble_", "") for f in model_files
-))
+categories_available = sorted(set(f.stem.replace("ensemble_", "") for f in model_files))
 
 if not categories_available:
-    st.warning("No trained models found. Please run `python src/train.py` first.")
+    st.warning("No trained models found. Run `python src/train.py` first.")
     st.stop()
 
 st.markdown(
-    f"<div style='background:#ECFDF5; color:#065F46; padding:0.6rem 1rem; border-radius:8px; "
-    f"font-size:0.85rem; margin-bottom:1.5rem;'>"
-    f"[OK] {len(categories_available)} categories available for forecasting</div>",
+    f"<div style='background:#0C2D1B; color:#3FB950; padding:0.5rem 1rem; border-radius:6px; "
+    f"font-size:0.82rem; margin-bottom:1.25rem; border:1px solid #1A3F2B;'>"
+    f"OK  {len(categories_available)} categories available for forecasting</div>",
     unsafe_allow_html=True
 )
 
-# ── Controls ──
 col1, col2, col3 = st.columns([2, 1, 1])
 
 with col1:
@@ -47,31 +43,23 @@ with col1:
         index=categories_available.index("bed_bath_table") if "bed_bath_table" in categories_available else 0,
     )
 with col2:
-    forecast_days = st.selectbox(
-        "Forecast Horizon",
-        [7, 14, 30, 60, 90],
-        index=2,
-    )
+    forecast_days = st.selectbox("Forecast Horizon", [7, 14, 30, 60, 90], index=2)
 with col3:
     show_individual = st.checkbox("Show individual model predictions", value=False)
 
-# ── Generate Forecast ──
 @st.cache_data(ttl=300)
 def get_forecast(category: str, days: int):
     try:
         ensemble = load_model(f"ensemble_{category}.pkl")
         featured_data = load_model("featured_data.pkl")
         forecast_df, info = generate_forecast(
-            category=category,
-            days=days,
-            results=ensemble,
-            featured_data=featured_data,
+            category=category, days=days,
+            results=ensemble, featured_data=featured_data,
         )
         return forecast_df, info
     except Exception as e:
         st.error(f"Forecast failed: {e}")
         return None, None
-
 
 with st.spinner(f"Generating {forecast_days}-day forecast for {selected_cat}..."):
     forecast_df, info = get_forecast(selected_cat, forecast_days)
@@ -79,7 +67,6 @@ with st.spinner(f"Generating {forecast_days}-day forecast for {selected_cat}..."
 if forecast_df is None:
     st.stop()
 
-# ── Summary Cards ──
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Forecast Total", f"{info['total_forecast_orders']:,} orders")
@@ -95,15 +82,13 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── Forecast Plot ──
 st.markdown("""
 <div class="section-header">
-    <div class="accent-bar"></div>
+    <div class="bar"></div>
     <h2>Forecast Visualization</h2>
 </div>
 """, unsafe_allow_html=True)
 
-# Get historical data
 if not daily.empty:
     hist_data = daily[daily[CATEGORY_COL] == selected_cat].sort_values("date").tail(90)
 else:
@@ -111,111 +96,76 @@ else:
 
 fig = go.Figure()
 
-# Historical actuals
 if not hist_data.empty:
     fig.add_trace(go.Scatter(
-        x=hist_data["date"],
-        y=hist_data[TARGET_COL],
+        x=hist_data["date"], y=hist_data[TARGET_COL],
         mode="lines",
         name="Historical Actual",
-        line=dict(color="#94A3B8", width=1.5),
+        line=dict(color="#8B949E", width=1.5),
     ))
 
-# Forecast with confidence band
 last_date = hist_data["date"].iloc[-1] if not hist_data.empty else forecast_df["date"].iloc[0]
 last_val = hist_data[TARGET_COL].iloc[-1] if not hist_data.empty else None
 
-# Upper bound
 fig.add_trace(go.Scatter(
-    x=pd.concat([
-        pd.Series([last_date]) if not hist_data.empty else pd.Series([]),
-        forecast_df["date"]
-    ]),
-    y=pd.concat([
-        pd.Series([last_val]) if last_val is not None else pd.Series([]),
-        forecast_df["predicted_upper"]
-    ]),
-    mode="lines",
-    name="Upper Bound",
-    line=dict(width=0),
-    showlegend=False,
-    fill=None,
+    x=pd.concat([pd.Series([last_date]) if not hist_data.empty else pd.Series([]), forecast_df["date"]]),
+    y=pd.concat([pd.Series([last_val]) if last_val is not None else pd.Series([]), forecast_df["predicted_upper"]]),
+    mode="lines", name="Upper Bound", line=dict(width=0), showlegend=False,
 ))
-# Lower bound with fill
 fig.add_trace(go.Scatter(
-    x=pd.concat([
-        pd.Series([last_date]) if not hist_data.empty else pd.Series([]),
-        forecast_df["date"]
-    ]),
-    y=pd.concat([
-        pd.Series([last_val]) if last_val is not None else pd.Series([]),
-        forecast_df["predicted_lower"]
-    ]),
-    mode="lines",
-    name="Confidence Band",
-    line=dict(width=0),
-    fillcolor="rgba(59, 130, 246, 0.15)",
-    fill="tonexty",
-    showlegend=True,
+    x=pd.concat([pd.Series([last_date]) if not hist_data.empty else pd.Series([]), forecast_df["date"]]),
+    y=pd.concat([pd.Series([last_val]) if last_val is not None else pd.Series([]), forecast_df["predicted_lower"]]),
+    mode="lines", name="Confidence Band", line=dict(width=0),
+    fillcolor="rgba(88, 166, 255, 0.15)", fill="tonexty", showlegend=True,
 ))
-
-# Mean forecast
 fig.add_trace(go.Scatter(
-    x=forecast_df["date"],
-    y=forecast_df["predicted_orders"],
+    x=forecast_df["date"], y=forecast_df["predicted_orders"],
     mode="lines+markers",
     name="Forecast (Ensemble)",
-    line=dict(color="#1E3A5F", width=2.5),
-    marker=dict(size=5, color="#1E3A5F", symbol="circle"),
+    line=dict(color="#58A6FF", width=2.5),
+    marker=dict(size=5, color="#58A6FF", symbol="circle"),
 ))
 
-# Individual model predictions
 if show_individual:
     model_styles = {
-        "xgboost": {"color": "#10B981", "dash": "dot", "label": "XGBoost"},
-        "prophet": {"color": "#F59E0B", "dash": "dot", "label": "Prophet"},
-        "lstm": {"color": "#8B5CF6", "dash": "dot", "label": "LSTM"},
+        "xgboost": {"color": "#3FB950", "dash": "dot", "label": "XGBoost"},
+        "prophet": {"color": "#D29922", "dash": "dot", "label": "Prophet"},
+        "lstm": {"color": "#BC8CFF", "dash": "dot", "label": "LSTM"},
     }
     for model_name, style in model_styles.items():
         col_name = f"{model_name}_prediction"
         if col_name in forecast_df.columns:
             fig.add_trace(go.Scatter(
-                x=forecast_df["date"],
-                y=forecast_df[col_name],
-                mode="lines",
-                name=style["label"],
+                x=forecast_df["date"], y=forecast_df[col_name],
+                mode="lines", name=style["label"],
                 line=dict(color=style["color"], width=1.5, dash=style["dash"]),
             ))
 
-# Forecast start line
 if not hist_data.empty:
     fig.add_vline(
-        x=last_date,
-        line_dash="dash",
-        line_color="#64748B",
-        annotation_text="Forecast Start",
-        annotation_position="top left",
-        annotation_font_size=11,
-        annotation_font_color="#64748B",
+        x=last_date, line_dash="dash", line_color="#484F58",
+        annotation_text="Forecast Start", annotation_position="top left",
+        annotation_font_size=11, annotation_font_color="#8B949E",
     )
 
 fig.update_layout(
-    title=f"{forecast_days}-Day Demand Forecast — {selected_cat}",
-    xaxis_title=None,
-    yaxis_title="Daily Orders",
-    template="plotly_white",
+    title=f"{forecast_days}-Day Demand Forecast - {selected_cat}",
+    xaxis_title="", yaxis_title="Daily Orders",
+    template="plotly_dark",
     hovermode="x unified",
-    legend=dict(orientation="h", y=1.12, font_size=11),
+    legend=dict(orientation="h", y=1.12, font=dict(color="#8B949E")),
     margin=dict(l=10, r=10, t=30, b=10),
-    plot_bgcolor="#FFFFFF",
-    paper_bgcolor="#FFFFFF",
+    plot_bgcolor="#0D1117",
+    paper_bgcolor="#0D1117",
+    font=dict(color="#C9D1D9"),
+    xaxis=dict(gridcolor="#21262D"),
+    yaxis=dict(gridcolor="#21262D"),
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# ── Forecast Data Table ──
 st.markdown("""
 <div class="section-header">
-    <div class="accent-bar"></div>
+    <div class="bar"></div>
     <h2>Forecast Data</h2>
 </div>
 """, unsafe_allow_html=True)
@@ -233,7 +183,6 @@ st.dataframe(
     use_container_width=True,
 )
 
-# ── Download ──
 col1, col2 = st.columns([1, 4])
 with col1:
     csv = forecast_df.to_csv(index=False).encode("utf-8")
@@ -246,7 +195,6 @@ with col1:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── Model Info ──
 with st.expander("Forecast Information"):
     clean_info = {k: v for k, v in info.items()}
     st.json(clean_info)
