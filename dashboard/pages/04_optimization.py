@@ -16,7 +16,7 @@ st.set_page_config(layout="wide", page_title="Inventory Optimizer")
 daily = st.session_state.get("daily_data", pd.DataFrame())
 featured = st.session_state.get("featured_data", pd.DataFrame())
 
-st.title("📦 Inventory Optimizer")
+st.title("[$] Inventory Optimizer")
 st.markdown("---")
 
 st.markdown("""
@@ -26,7 +26,7 @@ respecting **storage capacity** and **budget** constraints.
 """)
 
 
-# ── Check for forecast data ──
+# -- Check for forecast data --
 @st.cache_data
 def get_top_categories_forecast():
     """Get forecast data for top categories if models exist."""
@@ -68,8 +68,8 @@ if forecast_data.empty:
     st.warning("No forecast data available. Train models and run data pipeline first.")
     st.stop()
 
-# ── Parameters ──
-st.subheader("⚙️ Optimization Parameters")
+# -- Parameters --
+st.subheader("[=] Optimization Parameters")
 
 col1, col2, col3 = st.columns(3)
 
@@ -110,8 +110,8 @@ with col3:
     )
 
 
-# ── Cost Configuration ──
-st.subheader("💲 Per-Category Cost Configuration")
+# -- Cost Configuration --
+st.subheader("[$] Per-Category Cost Configuration")
 
 # Let user edit unit costs
 cost_config = forecast_data[["category"]].copy()
@@ -144,8 +144,8 @@ edited_config = st.data_editor(
 )
 
 
-# ── Run Optimization ──
-if st.button("🚀 Run Optimization", type="primary"):
+# -- Run Optimization --
+if st.button("[>] Run Optimization", type="primary"):
     from src.optimize import InventoryInput, solve_inventory_optimization
 
     items = []
@@ -176,7 +176,7 @@ if st.button("🚀 Run Optimization", type="primary"):
             stockout_cost_pct=stockout_cost_pct,
         )
 
-    st.subheader("✅ Optimization Results")
+    st.subheader("[OK] Optimization Results")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -206,8 +206,8 @@ if st.button("🚀 Run Optimization", type="primary"):
         use_container_width=True,
     )
 
-    # ── Visualization ──
-    st.subheader("📊 Reorder Recommendations")
+    # -- Visualization --
+    st.subheader("[#] Reorder Recommendations")
 
     # Horizontal bar chart
     fig = go.Figure()
@@ -239,7 +239,7 @@ if st.button("🚀 Run Optimization", type="primary"):
     st.plotly_chart(fig, use_container_width=True)
 
     # Cost breakdown
-    st.subheader("💰 Cost Breakdown")
+    st.subheader("[$] Cost Breakdown")
 
     cost_fig = px.bar(
         results_df,
@@ -256,40 +256,40 @@ if st.button("🚀 Run Optimization", type="primary"):
     # Download results
     csv = results_df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="📥 Download Optimization Results",
+        label="[V] Download Optimization Results",
         data=csv,
         file_name="inventory_optimization_results.csv",
         mime="text/csv",
     )
 
 
-# ── Methodology Explanation ──
-with st.expander("📖 How It Works"):
+# -- Methodology Explanation --
+with st.expander("[i] How It Works"):
     st.markdown("""
     ### Inventory Optimization Model
 
-    **Decision Variables:** Reorder quantity \( Q_i \) for each product category \( i \).
+    **Decision Variables:** Reorder quantity Q_i for each product category i.
 
     **Objective Function:** Minimize total inventory cost
 
-    \[
-    \min \sum_{i} \left[ h \cdot c_i \left( \frac{I_i}{2} + Q_i \right) + s \cdot c_i \cdot \max(0, D_i - (I_i + Q_i)) \right]
-    \]
+    ```
+    min SUM_i [ h * c_i * (I_i/2 + Q_i) + s * c_i * max(0, D_i - (I_i + Q_i)) ]
+    ```
 
     Where:
-    - \( h \) = holding cost rate (annual, as fraction of unit cost)
-    - \( c_i \) = unit cost of category \( i \)
-    - \( I_i \) = current inventory of category \( i \)
-    - \( Q_i \) = reorder quantity for category \( i \)
-    - \( s \) = stockout cost rate
-    - \( D_i \) = forecast demand for category \( i \)
+    - h = holding cost rate (annual, as fraction of unit cost)
+    - c_i = unit cost of category i
+    - I_i = current inventory of category i
+    - Q_i = reorder quantity for category i
+    - s = stockout cost rate
+    - D_i = forecast demand for category i
 
     **Constraints:**
-    - **Storage capacity:** \( \sum_i w_i Q_i \leq W \) (total space)
-    - **Budget:** \( \sum_i c_i Q_i \leq B \) (total purchase cost)
-    - **Service level:** \( I_i + Q_i \geq D_i + z_{\alpha} \sigma_i \sqrt{L/30} \)
-    - **Non-negativity:** \( Q_i \geq 0 \)
+    - **Storage capacity:** SUM_i w_i Q_i <= W (total space)
+    - **Budget:** SUM_i c_i Q_i <= B (total purchase cost)
+    - **Service level:** I_i + Q_i >= D_i + z * sigma_i * sqrt(L/30)
+    - **Non-negativity:** Q_i >= 0
 
-    The safety factor \( z_{\alpha} \) is derived from the service level target
-    (e.g., \( z = 1.645 \) for 95% service level).
+    The safety factor z is derived from the service level target
+    (e.g., z = 1.645 for 95% service level).
     """)
