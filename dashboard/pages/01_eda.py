@@ -19,10 +19,10 @@ if daily.empty:
     st.warning("No data loaded. Please run `python src/data_loader.py` first.")
     st.stop()
 
-st.title("📈 Exploratory Data Analysis")
+st.title("[~] Exploratory Data Analysis")
 st.markdown("---")
 
-# ── Summary Metrics ──
+# -- Summary Metrics --
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Total Orders", f"{int(daily[TARGET_COL].sum()):,}")
@@ -32,12 +32,12 @@ with col2:
 with col3:
     st.metric("Categories", daily[CATEGORY_COL].nunique())
 with col4:
-    date_range = f"{daily['date'].min().date()} → {daily['date'].max().date()}"
+    date_range = f"{daily['date'].min().date()} -> {daily['date'].max().date()}"
     st.metric("Date Range", date_range)
 
 
-# ── Daily Order Trend ──
-st.subheader("📆 Daily Order Trend")
+# -- Daily Order Trend --
+st.subheader("[-] Daily Order Trend")
 daily_total = daily.groupby("date")[TARGET_COL].sum().reset_index()
 
 fig = px.line(
@@ -58,8 +58,8 @@ fig.add_scatter(
 st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Top Categories ──
-st.subheader("🏆 Top Categories by Volume")
+# -- Top Categories --
+st.subheader("[T] Top Categories by Volume")
 top_n = st.slider("Number of categories to show", 5, 30, 15)
 
 cat_totals = (
@@ -85,8 +85,8 @@ fig.update_layout(yaxis={"categoryorder": "total ascending"})
 st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Category Selector for Detailed View ──
-st.subheader("🔍 Category Deep Dive")
+# -- Category Selector for Detailed View --
+st.subheader("[Z] Category Deep Dive")
 categories = sorted(daily[CATEGORY_COL].unique().tolist())
 selected_cat = st.selectbox("Select a category to explore", categories)
 
@@ -132,8 +132,8 @@ with col2:
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Seasonality Heatmap ──
-st.subheader("📅 Seasonality Heatmap")
+# -- Seasonality Heatmap --
+st.subheader("[#] Seasonality Heatmap")
 st.markdown("Average daily orders by month and day of week.")
 
 cat_data_hm = cat_data.copy()
@@ -161,9 +161,9 @@ fig = px.imshow(
 st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Revenue Analysis ──
+# -- Revenue Analysis --
 if "total_revenue" in daily.columns:
-    st.subheader("💰 Revenue Analysis")
+    st.subheader("[$] Revenue Analysis")
     revenue_data = (
         daily.groupby(CATEGORY_COL)["total_revenue"]
         .sum()
@@ -187,8 +187,8 @@ if "total_revenue" in daily.columns:
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Category Growth Rate ──
-st.subheader("📈 Category Growth Trend (Month-over-Month)")
+# -- Category Growth Rate --
+st.subheader("[^] Category Growth Trend (Month-over-Month)")
 cat_data_mom = cat_data.copy()
 cat_data_mom["month"] = pd.to_datetime(cat_data_mom["date"]).dt.to_period("M").astype(str)
 monthly = cat_data_mom.groupby("month")[TARGET_COL].sum().reset_index()
