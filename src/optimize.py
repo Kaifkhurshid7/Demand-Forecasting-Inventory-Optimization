@@ -1,8 +1,7 @@
 """
-Inventory Optimization — Linear Programming (PuLP) solver.
-
-Determines optimal reorder quantities per product category to minimize
-holding and stockout costs while respecting capacity and service constraints.
+Inventory Optimization using Linear Programming (PuLP).
+Solves for the optimal reorder quantities per category to minimize
+holding costs and stockout costs, while respecting storage and budget limits.
 """
 
 import pandas as pd
@@ -18,15 +17,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class InventoryInput:
-    """Input data for the inventory optimization model."""
+    """
+    Data class that holds all input information needed for optimization.
+    Each item represents one product category with its demand forecast and costs.
+    """
     category: str
-    forecast_demand: float      # Expected demand for the period
-    forecast_std: float         # Demand uncertainty (std dev)
-    current_stock: float        # Units currently in stock
-    unit_cost: float            # Purchase cost per unit
-    selling_price: float        # Selling price per unit
-    lead_time_days: int         # Supplier lead time
-    storage_per_unit: float     # Storage space per unit (cubic ft / slots)
+    forecast_demand: float       # Expected demand for the period
+    forecast_std: float          # Standard deviation of demand (uncertainty)
+    current_stock: float         # How many units we currently have
+    unit_cost: float             # Cost to purchase one unit
+    selling_price: float         # Price we sell it for
+    lead_time_days: int          # How long supplier takes to deliver
+    storage_per_unit: float      # Space taken by one unit
 
 
 def solve_inventory_optimization(
@@ -38,75 +40,71 @@ def solve_inventory_optimization(
     stockout_cost_pct: Optional[float] = None,
 ) -> Dict:
     """
-    Solve the multi-item inventory optimization problem using linear programming.
+    Uses PuLP to find optimal reorder quantities that minimize total costs.
 
-    The model:
-        Decision Variables: Reorder quantity (Q_i) for each category
-        Objective: Minimize total cost = holding cost + stockout cost
-        Constraints:
-            - Storage capacity (total space ≤ capacity)
-            - Budget (total purchase cost ≤ budget)
-            - Non-negativity (Q_i ≥ 0)
+    The LP model works like this:
+        - Decision: How many units to reorder for each category (Q_i)
+        - Goal: Minimize (holding cost + stockout cost)
+        - Rules: Stay within storage capacity, budget, and meet service level
 
     Args:
-        items: List of InventoryInput for each category.
-        storage_capacity: Total warehouse capacity in units of space.
-        budget: Maximum purchase budget.
-        service_level: Desired service level (0-1).
-        holding_cost_pct: Annual holding cost as fraction of unit cost.
-        stockout_cost_pct: Stockout cost as fraction of unit cost.
+        items: List of product categories with their demand data
+        storage_capacity: Total warehouse space available
+        budget: Maximum money we can spend on new inventory
+        service_level: Target probability of not running out of stock
+        holding_cost_pct: Annual cost to hold inventory as % of unit cost
+        stockout_cost_pct: Cost of lost sales as % of unit cost
 
     Returns:
-        Dict with:
-            - 'results': DataFrame with reorder quantities and metrics
-            - 'total_cost': Total expected inventory cost
-            - 'status': Solution status
+        Dictionary with results dataframe, total cost, and solution status
     """
     import pulp
+    from scipy.stats import norm
 
-    # Defaults
+    # Use defaults from config if parameters not provided
     storage_capacity = storage_capacity or INVENTORY_PARAMS["storage_capacity"]
     budget = budget or INVENTORY_PARAMS["budget"]
     service_level = service_level or INVENTORY_PARAMS["service_level"]
     holding_cost_pct = holding_cost_pct or INVENTORY_PARAMS["holding_cost_pct"]
     stockout_cost_pct = stockout_cost_pct or INVENTORY_PARAMS["stockout_cost_pct"]
 
-    # Safety factor for service level (assumes normally distributed demand)
-    from scipy.stats import norm
+    # Z-score for the given service level (assuming normal distribution)
     safety_factor = norm.ppf(service_level)
 
-    # Create the LP problem
+    # Create the optimization problem (we want to minimize cost)
     prob = pulp.LpProblem("Inventory_Optimization", pulp.LpMinimize)
 
-    # Decision variables: reorder quantity per category
+    # Decision variables: how much to reorder for each category
     n = len(items)
     Q = [pulp.LpVariable(f"Q_{i}", lowBound=0, cat="Continuous") for i in range(n)]
 
-    # ── Objective: minimize total cost ──
-    # Total cost = holding cost + stockout cost
-    #   Holding cost  = holding_cost_pct * unit_cost * (avg inventory level)
-    #   Stockout cost = stockout_cost_pct * unit_cost * expected stockout
-    #   Avg inventory ≈ current_stock/2 + Q (simplified periodic review)
+    # Objective: Minimize total cost = holding cost + stockout cost
+    # Holding cost depends on average inventory level
+    # Stockout cost happens when demand exceeds available stock
+    # We linearize the stockout term using auxiliary variables S_i >= 0
+    S = [pulp.LpVariable(f"S_{i}", lowBound=0, cat="Continuous") for i in range(n)]
+
+    # S_i >= forecast_demand - (current_stock + Q_i), i.e., unmet demand
+    for i, item in enumerate(items):
+        prob += S[i] >= item.forecast_demand - (item.current_stock + Q[i])
 
     total_cost = pulp.lpSum([
         (
             holding_cost_pct * item.unit_cost * (item.current_stock / 2.0 + Q[i])
-            + stockout_cost_pct * item.unit_cost
-            * max(0, item.forecast_demand - (item.current_stock + Q[i]))
+            + stockout_cost_pct * item.unit_cost * S[i]
         )
         for i, item in enumerate(items)
     ])
     prob += total_cost
 
-    # ── Constraints ──
+    # Constraint 1: Total storage space used must be within capacity
+    prob += pulp.lpSum([item.storage_per_unit * Q[i] for i, item in enumerate(items)]) <= storage_capacity
 
-    # 1. Storage capacity
-    prob += pulp.lpSum([item.storage_per_unit * Q[i] for i, item in enumerate(items)]) <= storage_capacity, "StorageCapacity"
+    # Constraint 2: Total purchase cost must be within budget
+    prob += pulp.lpSum([item.unit_cost * Q[i] for i, item in enumerate(items)]) <= budget
 
-    # 2. Budget
-    prob += pulp.lpSum([item.unit_cost * Q[i] for i, item in enumerate(items)]) <= budget, "Budget"
-
-    # 3. Safety stock (service level): Q_i + current_stock ≥ forecast_demand + safety_stock
+    # Constraint 3: Maintain safety stock for service level
+    # Current stock + reorder quantity must cover expected demand + safety stock
     for i, item in enumerate(items):
         safety_stock = safety_factor * item.forecast_std * np.sqrt(item.lead_time_days / 30.0)
         prob += (
@@ -114,13 +112,13 @@ def solve_inventory_optimization(
             f"ServiceLevel_{i}",
         )
 
-    # ── Solve ──
+    # Solve the LP problem
     prob.solve(pulp.PULP_CBC_CMD(msg=False))
 
     status = pulp.LpStatus[prob.status]
     logger.info(f"Optimization status: {status}")
 
-    # ── Extract Results ──
+    # Extract the results
     results = []
     for i, item in enumerate(items):
         reorder_qty = pulp.value(Q[i]) or 0.0
@@ -150,55 +148,33 @@ def solve_inventory_optimization(
     }
 
 
-def run_optimization_pipeline(
-    forecast_df: pd.DataFrame,
-    cost_data: Optional[pd.DataFrame] = None,
-    **kwargs,
-) -> Dict:
+def run_optimization_pipeline(forecast_df: pd.DataFrame, **kwargs) -> Dict:
     """
-    Run the full inventory optimization pipeline given forecast data.
+    Run the full optimization pipeline using forecast data.
+    Takes a dataframe with predicted orders and converts it into inventory inputs.
 
     Args:
-        forecast_df: DataFrame with columns [category, predicted_orders, ...]
-        cost_data: Optional DataFrame with unit costs per category.
-        **kwargs: Override optimization parameters.
+        forecast_df: DataFrame with at least [category, predicted_orders] columns
+        **kwargs: Additional parameters to pass to the solver
 
     Returns:
-        Optimization results dict.
+        Optimization results from solve_inventory_optimization()
     """
-    logger.info("=" * 60)
-    logger.info("Inventory Optimization Pipeline")
-    logger.info("=" * 60)
-
-    # Default costs if not provided
-    if cost_data is None:
-        cost_data = forecast_df.copy()
-        cost_data["unit_cost"] = 50.0  # Default cost
-        cost_data["selling_price"] = 80.0
-        cost_data["storage_per_unit"] = 1.0
-        cost_data["current_stock"] = 100.0
+    logger.info("Running inventory optimization pipeline...")
 
     items = []
     for _, row in forecast_df.iterrows():
         cat = row.get("category", row.get("product_category_name_english", "unknown"))
-        cost_row = cost_data[cost_data["category"] == cat] if "category" in cost_data.columns else None
-
-        unit_cost = float(cost_row["unit_cost"].values[0]) if cost_row is not None and len(cost_row) > 0 else 50.0
-        selling_price = float(cost_row["selling_price"].values[0]) if cost_row is not None and len(cost_row) > 0 else 80.0
-        storage = float(cost_row["storage_per_unit"].values[0]) if cost_row is not None and len(cost_row) > 0 else 1.0
-        current_stock = float(cost_row["current_stock"].values[0]) if cost_row is not None and len(cost_row) > 0 else 100.0
-
         demand = row.get("predicted_orders", row.get(TARGET_COL, 0))
-        demand_std = demand * 0.3  # Assume 30% CV if not available
 
         inv_input = InventoryInput(
             category=str(cat),
             forecast_demand=float(demand),
-            forecast_std=float(demand_std),
-            current_stock=float(current_stock),
-            unit_cost=unit_cost,
-            selling_price=selling_price,
-            storage_per_unit=storage,
+            forecast_std=float(demand * 0.3),  # Assume 30% coefficient of variation
+            current_stock=100.0,
+            unit_cost=50.0,
+            selling_price=80.0,
+            storage_per_unit=1.0,
             lead_time_days=INVENTORY_PARAMS["lead_time_days"],
         )
         items.append(inv_input)
@@ -210,7 +186,7 @@ def run_optimization_pipeline(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    # Demo with synthetic data
+    # Test with sample data for 5 categories
     sample_items = [
         InventoryInput("bed_bath_table", 120, 20, 50, 45, 75, 7, 1.0),
         InventoryInput("health_beauty", 85, 15, 40, 55, 90, 7, 0.8),
