@@ -18,15 +18,15 @@ from src.config import PROJECT_ROOT, TARGET_COL, CATEGORY_COL
 
 logging.basicConfig(level=logging.INFO)
 
-# ── Page Config ──
+# -- Page Config --
 st.set_page_config(
     page_title="Demand Forecasting & Inventory Optimization",
-    page_icon="📊",
+    page_icon="⌖",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Load Data (cached) ──
+# -- Load Data (cached) --
 
 @st.cache_data
 def load_daily_data():
@@ -47,7 +47,7 @@ def load_featured_data():
     except (FileNotFoundError, AttributeError):
         return pd.DataFrame()
 
-# ── Initialize session state ──
+# -- Initialize session state --
 if "daily_data" not in st.session_state:
     st.session_state.daily_data = load_daily_data()
 if "featured_data" not in st.session_state:
@@ -57,19 +57,19 @@ daily = st.session_state.daily_data
 featured = st.session_state.featured_data
 
 
-# ── Sidebar Navigation ──
+# -- Sidebar Navigation --
 
-st.sidebar.markdown("# 📊 Navigation")
+st.sidebar.markdown("[#] Navigation")
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Go to",
     [
-        "🏠 Home",
-        "📈 EDA Overview",
-        "🤖 Model Comparison",
-        "🔮 Forecast Viewer",
-        "📦 Inventory Optimizer",
+        "[+] Home",
+        "[~] EDA Overview",
+        "[*] Model Comparison",
+        "[>] Forecast Viewer",
+        "[$] Inventory Optimizer",
     ],
     label_visibility="collapsed",
 )
@@ -80,23 +80,23 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### Data Status")
 if not daily.empty:
     n_cats = daily[CATEGORY_COL].nunique() if CATEGORY_COL in daily.columns else 0
-    st.sidebar.success(f"✅ {len(daily):,} rows\n{n_cats} categories")
+    st.sidebar.success(f"[OK] {len(daily):,} rows  |  {n_cats} categories")
 else:
-    st.sidebar.warning("⚠️ No data loaded")
+    st.sidebar.warning("[!] No data loaded")
 
 if not featured.empty:
-    st.sidebar.info(f"✅ Featured data: {len(featured):,} rows")
+    st.sidebar.info(f"[i] Featured data: {len(featured):,} rows")
 else:
-    st.sidebar.warning("⚠️ No featured data")
+    st.sidebar.warning("[!] No featured data")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("Built with Streamlit + Plotly")
 
 
-# ── Page Routing ──
+# -- Page Routing --
 
-if page == "🏠 Home":
-    st.title("📊 Demand Forecasting & Inventory Optimization")
+if page == "[+] Home":
+    st.title("Demand Forecasting & Inventory Optimization")
     st.markdown("---")
 
     col1, col2, col3 = st.columns(3)
@@ -106,7 +106,7 @@ if page == "🏠 Home":
         total_orders = int(daily[TARGET_COL].sum()) if not daily.empty else 0
         st.metric("Total Orders", f"{total_orders:,}")
     with col3:
-        date_range = f"{daily['date'].min().date()} → {daily['date'].max().date()}" if not daily.empty else "N/A"
+        date_range = f"{daily['date'].min().date()} -> {daily['date'].max().date()}" if not daily.empty else "N/A"
         st.metric("Date Range", date_range)
 
     st.markdown("""
@@ -117,8 +117,10 @@ if page == "🏠 Home":
     **XGBoost**, **LSTM**, and an **Ensemble** model, then uses **PuLP** for
     inventory optimization.
 
+    **Author:** Kaif Khurshid | XIM University | B.Tech Final Year (2023-27)
+
     ### Pipeline
-    1. **Data Ingestion** — Load & clean 9 CSV files
+    1. **Data Ingestion** — Load and clean 9 CSV files
     2. **EDA** — Visualize trends, seasonality, category patterns
     3. **Feature Engineering** — Lags, rolling windows, seasonal dummies
     4. **Model Training** — Prophet, XGBoost, LSTM, Weighted Ensemble
@@ -139,14 +141,14 @@ if page == "🏠 Home":
     ```
     """)
 
-elif page == "📈 EDA Overview":
+elif page == "[~] EDA Overview":
     exec(open("dashboard/pages/01_eda.py", encoding="utf-8").read())
 
-elif page == "🤖 Model Comparison":
+elif page == "[*] Model Comparison":
     exec(open("dashboard/pages/02_model_comparison.py", encoding="utf-8").read())
 
-elif page == "🔮 Forecast Viewer":
+elif page == "[>] Forecast Viewer":
     exec(open("dashboard/pages/03_forecast.py", encoding="utf-8").read())
 
-elif page == "📦 Inventory Optimizer":
+elif page == "[$] Inventory Optimizer":
     exec(open("dashboard/pages/04_optimization.py", encoding="utf-8").read())
