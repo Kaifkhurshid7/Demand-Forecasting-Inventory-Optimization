@@ -18,11 +18,11 @@ st.set_page_config(layout="wide", page_title="Model Comparison")
 daily = st.session_state.get("daily_data", pd.DataFrame())
 featured = st.session_state.get("featured_data", pd.DataFrame())
 
-st.title("🤖 Model Comparison")
+st.title("[*] Model Comparison")
 st.markdown("---")
 
 
-# ── Load Metrics ──
+# -- Load Metrics --
 @st.cache_data
 def load_saved_metrics():
     metrics_file = MODELS_DIR / "all_categories_metrics.json"
@@ -34,7 +34,7 @@ def load_saved_metrics():
 saved_metrics = load_saved_metrics()
 
 
-# ── Check model availability ──
+# -- Check model availability --
 model_files = list(MODELS_DIR.glob("ensemble_*.pkl"))
 categories_available = sorted(set(
     f.stem.replace("ensemble_", "") for f in model_files
@@ -52,12 +52,12 @@ if not categories_available:
     """)
     st.stop()
 
-st.success(f"✅ Models loaded for {len(categories_available)} categories")
+st.success(f"[OK] Models loaded for {len(categories_available)} categories")
 
 
-# ── Aggregate Metrics ──
+# -- Aggregate Metrics --
 if saved_metrics:
-    st.subheader("📊 Aggregate Performance Summary")
+    st.subheader("[+] Aggregate Performance Summary")
 
     metrics_df = pd.DataFrame.from_dict(saved_metrics, orient="index")
     metrics_df.index.name = "category"
@@ -97,8 +97,8 @@ if saved_metrics:
     )
 
 
-# ── Per-Category Forecast vs Actual ──
-st.subheader("🔍 Per-Category Forecast vs Actual")
+# -- Per-Category Forecast vs Actual --
+st.subheader("[Z] Per-Category Forecast vs Actual")
 
 selected_cat = st.selectbox("Select category to examine", categories_available)
 
@@ -111,7 +111,7 @@ if selected_cat and not featured.empty:
         actual = test_data[TARGET_COL].values
         dates = test_data["date"].values
 
-        # Try to get predictions — these would ideally be stored
+        # Try to get predictions -- these would ideally be stored
         # For now, show actual vs historical rolling mean as baseline
         baseline = test_data[TARGET_COL].shift(1).rolling(7, min_periods=1).mean().values
 
@@ -144,7 +144,7 @@ if selected_cat and not featured.empty:
         st.caption(f"Baseline (7-day MA) MAE: {mae:.2f}")
 
     # Category statistics
-    st.subheader("📋 Category Statistics")
+    st.subheader("[#] Category Statistics")
     stats = cat_data[TARGET_COL].describe()
     stats_df = pd.DataFrame({
         "Metric": ["Mean", "Std", "Min", "25%", "50%", "75%", "Max"],
@@ -161,15 +161,15 @@ if selected_cat and not featured.empty:
     st.dataframe(stats_df, hide_index=True, use_container_width=True)
 
 
-# ── Model Architecture Summary ──
-st.subheader("🧠 Model Architecture Overview")
+# -- Model Architecture Summary --
+st.subheader("[i] Model Architecture Overview")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.info(
         "### Prophet\n"
-        "**Additive model** with yearly & weekly seasonality.\n\n"
+        "**Additive model** with yearly and weekly seasonality.\n\n"
         "Handles holidays natively as regressors.\n\n"
         "Best for: capturing trend + strong seasonality."
     )

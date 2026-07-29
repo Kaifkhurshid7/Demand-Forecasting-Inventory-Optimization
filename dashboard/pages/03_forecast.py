@@ -18,10 +18,10 @@ st.set_page_config(layout="wide", page_title="Forecast Viewer")
 daily = st.session_state.get("daily_data", pd.DataFrame())
 featured = st.session_state.get("featured_data", pd.DataFrame())
 
-st.title("🔮 Forecast Viewer")
+st.title("[>] Forecast Viewer")
 st.markdown("---")
 
-# ── Discover available categories ──
+# -- Discover available categories --
 model_files = list(MODELS_DIR.glob("ensemble_*.pkl"))
 categories_available = sorted(set(
     f.stem.replace("ensemble_", "") for f in model_files
@@ -31,9 +31,9 @@ if not categories_available:
     st.warning("No trained models found. Please run `python src/train.py` first.")
     st.stop()
 
-st.success(f"✅ {len(categories_available)} categories available for forecasting")
+st.success(f"[OK] {len(categories_available)} categories available for forecasting")
 
-# ── Controls ──
+# -- Controls --
 col1, col2, col3 = st.columns([2, 1, 1])
 
 with col1:
@@ -52,7 +52,7 @@ with col3:
     show_individual = st.checkbox("Show individual model predictions", value=False)
 
 
-# ── Generate Forecast ──
+# -- Generate Forecast --
 @st.cache_data(ttl=300)
 def get_forecast(category: str, days: int):
     try:
@@ -76,7 +76,7 @@ with st.spinner(f"Generating {forecast_days}-day forecast for {selected_cat}..."
 if forecast_df is None:
     st.stop()
 
-# ── Summary Cards ──
+# -- Summary Cards --
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Forecast Total", f"{info['total_forecast_orders']:,} orders")
@@ -90,8 +90,8 @@ with col4:
     st.metric("Trend vs History", f"{change:+.1f}%")
 
 
-# ── Forecast Plot ──
-st.subheader("📈 Forecast Visualization")
+# -- Forecast Plot --
+st.subheader("[~] Forecast Visualization")
 
 # Get historical data for context
 if not daily.empty:
@@ -172,7 +172,7 @@ if not hist_data.empty:
     )
 
 fig.update_layout(
-    title=f"{forecast_days}-Day Demand Forecast — {selected_cat}",
+    title=f"{forecast_days}-Day Demand Forecast -- {selected_cat}",
     xaxis_title="Date",
     yaxis_title="Daily Orders",
     template="plotly_white",
@@ -182,8 +182,8 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 
-# ── Forecast Data Table ──
-st.subheader("📋 Forecast Data")
+# -- Forecast Data Table --
+st.subheader("[#] Forecast Data")
 st.dataframe(
     forecast_df[["date", "predicted_orders", "predicted_lower", "predicted_upper"]]
     .rename(columns={
@@ -202,16 +202,16 @@ st.dataframe(
 )
 
 
-# ── Download Forecast ──
+# -- Download Forecast --
 csv = forecast_df.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="📥 Download Forecast as CSV",
+    label="[V] Download Forecast as CSV",
     data=csv,
     file_name=f"forecast_{selected_cat}_{forecast_days}days.csv",
     mime="text/csv",
 )
 
 
-# ── Model Info ──
-st.subheader("ℹ️ Forecast Information")
+# -- Model Info --
+st.subheader("[i] Forecast Information")
 st.json(info)
