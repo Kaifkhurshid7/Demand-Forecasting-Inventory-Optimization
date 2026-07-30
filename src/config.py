@@ -1,19 +1,28 @@
 """
-Configuration file for the Demand Forecasting project.
-Contains all the paths, parameters, and constants used across the project.
+Configuration module for demand forecasting and inventory optimization system.
+
+This module centralizes all configuration parameters, paths, and constants used
+across the ML pipeline, ensuring consistency and facilitating maintenance.
+
+Author: Kaif Khurshid
+
 """
 
-import os
 from pathlib import Path
 
-# Get the project root directory (parent of src/)
+# ============================================================================
+# PROJECT STRUCTURE
+# ============================================================================
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Data directories
+# ============================================================================
+# DATA DIRECTORIES
+# ============================================================================
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
-# All 9 Olist CSV files that make up the dataset
+# Olist Brazilian E-Commerce dataset file mapping.
+# These 9 files are required for the data ingestion pipeline.
 OLIST_FILES = {
     "orders": "olist_orders_dataset.csv",
     "order_items": "olist_order_items_dataset.csv",
@@ -26,16 +35,22 @@ OLIST_FILES = {
     "category_translation": "product_category_name_translation.csv",
 }
 
-# Model and reports directories
+# ============================================================================
+# MODEL & REPORTING DIRECTORIES
+# ============================================================================
 MODELS_DIR = PROJECT_ROOT / "models"
 FIGURES_DIR = PROJECT_ROOT / "reports" / "figures"
 
-# Column names used throughout the project
+# ============================================================================
+# TEMPORAL CONFIGURATION
+# ============================================================================
+# Column names for temporal and target variables
 DATE_COL = "order_purchase_timestamp"
 TARGET_COL = "order_count"
 CATEGORY_COL = "product_category_name_english"
 
-# Date ranges for train/validation/test split (chronological order)
+# Walk-forward validation split: ensures chronological consistency and
+# prevents temporal data leakage (no future information in training).
 TRAIN_START = "2016-09-01"
 TRAIN_END = "2018-06-30"
 VAL_START = "2018-07-01"
@@ -43,34 +58,27 @@ VAL_END = "2018-08-31"
 TEST_START = "2018-09-01"
 TEST_END = "2018-10-31"
 
-# Feature engineering parameters
-LAG_DAYS = [1, 2, 3, 7, 14, 21, 30]  # How many days back to look for lag features
-ROLLING_WINDOWS = [7, 14, 30]  # Window sizes for rolling averages
+# ============================================================================
+# FEATURE ENGINEERING PARAMETERS
+# ============================================================================
+# Lag features capture short-term temporal dependencies.
+LAG_DAYS = [1, 2, 3, 7, 14, 21, 30]
 
-# Brazilian public holidays that might affect order patterns
+# Rolling window statistics aggregate medium-term trends and volatility.
+ROLLING_WINDOWS = [7, 14, 30]
+
+# Brazilian public holidays for seasonal decomposition and modeling.
 HOLIDAY_DATES = [
-    "2016-11-15",  # Republic Day
-    "2016-12-25",  # Christmas
-    "2017-01-01",  # New Year
-    "2017-02-25",  # Carnaval
-    "2017-04-14",  # Good Friday
-    "2017-05-01",  # Labor Day
-    "2017-06-15",  # Corpus Christi
-    "2017-09-07",  # Independence Day
-    "2017-10-12",  # Our Lady Aparecida
-    "2017-11-02",  # All Souls' Day
-    "2017-11-15",  # Republic Day
-    "2017-12-25",  # Christmas
-    "2018-01-01",  # New Year
-    "2018-02-10",  # Carnaval
-    "2018-03-30",  # Good Friday
-    "2018-05-01",  # Labor Day
-    "2018-05-31",  # Corpus Christi
-    "2018-09-07",  # Independence Day
-    "2018-10-12",  # Our Lady Aparecida
+    "2016-11-15", "2016-12-25", "2017-01-01", "2017-02-25", "2017-04-14",
+    "2017-05-01", "2017-06-15", "2017-09-07", "2017-10-12", "2017-11-02",
+    "2017-11-15", "2017-12-25", "2018-01-01", "2018-02-10", "2018-03-30",
+    "2018-05-01", "2018-05-31", "2018-09-07", "2018-10-12",
 ]
 
-# Prophet model hyperparameters
+# ============================================================================
+# MODEL HYPERPARAMETERS
+# ============================================================================
+# Prophet configuration for time series decomposition.
 PROPHET_PARAMS = {
     "seasonality_mode": "multiplicative",
     "yearly_seasonality": True,
@@ -81,7 +89,7 @@ PROPHET_PARAMS = {
     "uncertainty_samples": 0,
 }
 
-# XGBoost model hyperparameters
+# XGBoost gradient boosting regressor configuration.
 XGB_PARAMS = {
     "n_estimators": 500,
     "learning_rate": 0.05,
@@ -92,7 +100,7 @@ XGB_PARAMS = {
     "verbosity": 0,
 }
 
-# LSTM model hyperparameters
+# LSTM recurrent neural network architecture and training parameters.
 LSTM_PARAMS = {
     "seq_length": 30,
     "epochs": 50,
@@ -103,19 +111,29 @@ LSTM_PARAMS = {
     "patience": 10,
 }
 
-# Default weights for the ensemble model
+# Ensemble model weighting: determined inversely by validation RMSE.
+# Higher-performing models receive greater weight in the final forecast.
 ENSEMBLE_WEIGHTS = {"prophet": 0.25, "xgboost": 0.40, "lstm": 0.35}
 
-# Inventory optimization default parameters
+# ============================================================================
+# INVENTORY OPTIMIZATION PARAMETERS
+# ============================================================================
 INVENTORY_PARAMS = {
-    "holding_cost_pct": 0.25,       # 25% annual holding cost
-    "stockout_cost_pct": 0.40,      # 40% stockout cost
-    "service_level": 0.95,          # 95% service level target
-    "storage_capacity": 10000,
-    "budget": 500000,
-    "lead_time_days": 7,
+    "holding_cost_pct": 0.25,      # Annual inventory holding cost as % of unit cost
+    "stockout_cost_pct": 0.40,     # Lost sales penalty as % of unit cost
+    "service_level": 0.95,         # Target fill rate (95th percentile)
+    "storage_capacity": 10000,     # Total warehouse capacity units
+    "budget": 500000,              # Total procurement budget (currency)
+    "lead_time_days": 7,           # Supplier lead time
 }
 
-# Default forecast horizon (in days)
-FORECAST_HORIZON = 90
+# ============================================================================
+# FORECASTING CONFIGURATION
+# ============================================================================
+FORECAST_HORIZON = 90  # Default prediction window in days
+
+# ============================================================================
+# RANDOM STATE
+# ============================================================================
+# Fixed seed for reproducibility across stochastic components.
 RANDOM_STATE = 42
