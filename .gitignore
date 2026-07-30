@@ -21,10 +21,6 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Models (binary artifacts)
-models/*
-!models/.gitkeep
-
 # IDE
 .vscode/
 .idea/
