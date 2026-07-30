@@ -103,6 +103,14 @@ demand-forecasting-optimization/
 
 ## Getting Started
 
+### Live Deployments
+
+| Service | URL |
+|---|---|
+| **Streamlit Dashboard** | https://demand-forecasting-inventory-optimization-kdsgzhevubl6mchvjsfp.streamlit.app |
+| **FastAPI** | https://demand-forecasting-inventory-optimization.onrender.com |
+| **API Swagger Docs** | https://demand-forecasting-inventory-optimization.onrender.com/docs |
+
 ### Prerequisites
 - Python 3.11+
 - [Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) (place CSVs in `data/raw/`)
@@ -161,17 +169,22 @@ python src/train.py
 python src/optimize.py
 ```
 
-### Launch Services
+### Launch Services (Local Development)
 
 ```bash
 # FastAPI Inference API
 uvicorn api.main:app --reload
-# -> http://localhost:8000/docs (Swagger UI)
+# → http://localhost:8000/docs (Swagger UI)
 
 # Streamlit Dashboard
 streamlit run dashboard/app.py
-# -> http://localhost:8501
+# → http://localhost:8501
 ```
+
+### Or Use Live Deployments
+
+- **Dashboard:** https://demand-forecasting-inventory-optimization-kdsgzhevubl6mchvjsfp.streamlit.app
+- **API:** https://demand-forecasting-inventory-optimization.onrender.com/docs
 
 ## API Endpoints
 
